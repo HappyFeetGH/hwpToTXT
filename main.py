@@ -7,7 +7,9 @@ import tempfile
 import argparse
 
 ########
-# python transHWP.py --input ./example.hwpx --output ./output.txt
+# 사용법:
+# 단일 파일 변환: python transHWP.py --input ./example.hwpx --output ./output.txt
+# 폴더 내 모든 파일 변환: python transHWP.py --folder ./hwpx_files
 ########
 
 def hwpx_to_txt_with_tables(hwpx_file, output_txt_file):
@@ -127,24 +129,72 @@ def table_to_markdown(table_data):
     
     return markdown
 
+def convert_hwpx_folder_to_txt(folder_path):
+    """폴더 내의 모든 hwpx 파일을 txt 파일로 변환"""
+    if not os.path.isdir(folder_path):
+        print(f"오류: {folder_path}는 유효한 폴더가 아닙니다.")
+        return False
+    
+    # 결과 카운터
+    success_count = 0
+    failure_count = 0
+    
+    # 폴더 내 모든 파일 검사
+    for filename in os.listdir(folder_path):
+        if filename.lower().endswith('.hwpx'):
+            hwpx_file = os.path.join(folder_path, filename)
+            # 출력 파일 이름 생성 (확장자만 변경)
+            output_file = os.path.join(folder_path, os.path.splitext(filename)[0] + '.txt')
+            
+            print(f"변환 중: {filename}")
+            
+            # 파일 변환
+            if hwpx_to_txt_with_tables(hwpx_file, output_file):
+                success_count += 1
+                print(f"  → 성공: {os.path.basename(output_file)}")
+            else:
+                failure_count += 1
+                print(f"  → 실패: {filename}")
+    
+    # 결과 출력
+    print(f"\n변환 완료: 성공 {success_count}개, 실패 {failure_count}개")
+    return success_count > 0
+
+# 단일 파일 변환: python transHWP.py --input ./example.hwpx --output ./output.txt
+# 폴더 내 모든 파일 변환: python transHWP.py --folder ./hwpx_files
+
+
 def main():
     # 명령줄 인자 파서 생성
     parser = argparse.ArgumentParser(description='HWPX 파일을 TXT 파일로 변환합니다.')
     
-    # 인자 추가
-    parser.add_argument('--input', '-i', required=True, help='입력 HWPX 파일 경로')
-    parser.add_argument('--output', '-o', required=True, help='출력 TXT 파일 경로')
+    # 인자 그룹 생성 (단일 파일 모드와 폴더 모드를 구분)
+    mode_group = parser.add_mutually_exclusive_group(required=True)
+    
+    # 단일 파일 모드 인자
+    mode_group.add_argument('--input', '-i', help='입력 HWPX 파일 경로')
+    parser.add_argument('--output', '-o', help='출력 TXT 파일 경로 (--input과 함께 사용)')
+    
+    # 폴더 모드 인자
+    mode_group.add_argument('--folder', '-f', help='HWPX 파일이 있는 폴더 경로')
     
     # 인자 파싱
     args = parser.parse_args()
     
-    # 변환 실행
-    success = hwpx_to_txt_with_tables(args.input, args.output)
-    
-    if success:
-        print(f"변환 완료: {args.input} -> {args.output}")
+    # 모드에 따라 실행
+    if args.input:
+        # 단일 파일 모드
+        if not args.output:
+            parser.error("--input 옵션을 사용할 경우 --output도 함께 지정해야 합니다.")
+        
+        success = hwpx_to_txt_with_tables(args.input, args.output)
+        if success:
+            print(f"변환 완료: {args.input} -> {args.output}")
+        else:
+            print("변환 실패")
     else:
-        print("변환 실패")
+        # 폴더 모드
+        convert_hwpx_folder_to_txt(args.folder)
 
 if __name__ == "__main__":
     main()
